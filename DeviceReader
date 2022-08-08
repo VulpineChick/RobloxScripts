@@ -1,0 +1,94 @@
+--Amokahs Device Reader (Two device options)
+local PlayerDeviceData = {}
+function YieldMobile(player)
+	if player==game:GetService('Players').LocalPlayer then return end
+	PlayerDeviceData['p_'..player.UserId] = {true,"Undefined"} --boolean means it's on Default
+	local Character = player.Character
+	local Flags = {
+		Whole = {Counted=0,Debounced=os.clock()},
+		Decimals = {Counted=0,Debounced=os.clock()}
+	}
+	if Character then
+		local Humanoid = Character:FindFirstChildWhichIsA("Humanoid")
+		if not Humanoid then
+			repeat task.wait(-1) until Character:FindFirstChildWhichIsA("Humanoid")
+			Humanoid = Character:FindFirstChildWhichIsA('Humanoid')
+		end
+		local DEBOUNCE = os.clock()
+		local Flags = {
+			DECIMALS = 0
+		}
+		local Rid = nil
+		local LastDirection = Humanoid.MoveDirection.Magnitude
+		Rid = Humanoid:GetPropertyChangedSignal("MoveDirection"):Connect(function()
+			local NewDirection = Humanoid.MoveDirection.Magnitude
+			if NewDirection > 0 and NewDirection < 1 then
+				Flags.DECIMALS=Flags.DECIMALS+1
+				DEBOUNCE = os.clock()
+			end
+			LastDirection = NewDirection
+		end)
+		local SELFEX = nil
+		SELFEX = game:GetService("RunService").RenderStepped:Connect(function()
+			if os.clock()-DEBOUNCE < 0.045 then
+				local Length = Flags.DECIMALS
+				if Length > 5 then
+					PlayerDeviceData['p_'..player.UserId] = {false,"Mobile"}
+					Rid:Disconnect()
+					SELFEX:Disconnect()
+				else
+					PlayerDeviceData['p_'..player.UserId] = {false,"PC"}
+				end
+			elseif os.clock()-DEBOUNCE > 0.045 then
+				Flags.DECIMALS = 0
+			end
+		end)
+	else
+		player.CharacterAdded:Once(function()
+			YieldMobile(player)
+		end)
+	end
+end
+game:GetService('Players').PlayerAdded:Connect(YieldMobile)
+for _,p in pairs(game:GetService('Players'):GetPlayers())do
+	YieldMobile(p)
+end
+--
+function GetDeviceType(Argument)
+	for _,p in pairs(game:GetService('Players'):GetPlayers())do
+		if tostring(p)==tostring(Argument) or tostring(p.UserId)==tostring(Argument) then
+			local Data = PlayerDeviceData["p_"..p.UserId]
+			if Data then
+				return Data[2]
+			else
+				return "Undefined"
+			end
+		end
+	end
+end
+--~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~~ ~
+local Char = function(player)
+	local f = function(charInst)
+		local selfX = nil
+		selfX = game:GetService("RunService").RenderStepped:Connect(function()
+			if player.Character~=charInst then
+				selfX:Disconnect()
+			else
+				local Humanoid = player.Character:FindFirstChildWhichIsA("Humanoid")
+				if Humanoid then
+					local Device = GetDeviceType(player)
+					Humanoid.DisplayName = "[" .. Device .. "] " .. player.DisplayName
+				end
+			end
+		end)
+	end
+	if player.Character then
+		f(player.Character)
+	end
+	player.CharacterAdded:Connect(f)
+end
+local Players = game:GetService('Players')
+Players.PlayerAdded:Connect(Char)
+for _,p in pairs(Players:GetPlayers())do
+	Char(p)
+end
